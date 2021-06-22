@@ -1,6 +1,8 @@
 package com.example.simpletodo;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -19,6 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    public static final String KEY_ITEM_TEXT = "item_text";
+    public static final String KEY_ITEM_POSITION = "item_position";
+    public static final int EDIT_TEXT_CODE = 20;
     List<String> items;
 
     Button btnAdd;
@@ -48,7 +54,21 @@ public class MainActivity extends AppCompatActivity {
                 saveItem();
             }
         };
-        itemsAdapter = new ItemsAdapter(items, onLongClickListener);
+        ItemsAdapter.OnClickListener onClickListener = new ItemsAdapter.OnClickListener() {
+            @Override
+            public void onItemClicked(int position) {
+                // Launches a new activity
+                Intent i = new Intent(MainActivity.this, EditActivity.class);
+                //pass in the data
+                i.putExtra(KEY_ITEM_TEXT, items.get(position));
+                i.putExtra(KEY_ITEM_POSITION, position);
+                //display the activity
+                startActivityForResult(i, EDIT_TEXT_CODE);
+                Log.d("MainActivity", "Single Click at position" + position);
+            }
+        };
+
+        itemsAdapter = new ItemsAdapter(items, onLongClickListener, onClickListener);
         rvItems.setAdapter(itemsAdapter);
         rvItems.setLayoutManager(new LinearLayoutManager(this));
 
@@ -68,11 +88,31 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (resultCode == RESULT_OK && requestCode == EDIT_TEXT_CODE) {
+            // Retrieve the updated text value
+            String itemText = data.getStringExtra(KEY_ITEM_TEXT);
+            // Get the position
+            int position = data.getExtras().getInt(KEY_ITEM_POSITION);
+            // Update the model
+            items.set(position, itemText);
+            // Notify the adapter
+            itemsAdapter.notifyItemChanged(position);
+            // Persist the changes
+            saveItem();
+            Toast.makeText(getApplicationContext(), "Item was updated", Toast.LENGTH_SHORT).show();
+
+        } else {
+            Log.w("MainActivity", "Unknown call to onActivityResult");
+        }
+    }
+
     private File getDataFile() {
         return new File(getFilesDir(), "data.txt");
     }
 
-    //This function will load the items by reading every line in a data file.
+    // This function will load the items by reading every line in a data file.
     private void loadItems() {
         try {
             items = new ArrayList<>(FileUtils.readLines(getDataFile(), Charset.defaultCharset()));
